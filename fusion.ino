@@ -14,7 +14,7 @@ L3G gyro;
 unsigned long pT;
 
 int16_t ax, ay, az;
-double roll, pitch;
+double roll, pitch, accelRoll, accelPitch;
 double gX, gY, gZ = 0;
 
 bool readGyro;
@@ -59,19 +59,16 @@ void loop() {
     pT = cT;
 
     accel.getAcceleration(&ax, &ay, &az);
-    roll = (atan2(az, ax) * 4068) / 71 + 90;
-    pitch = (atan2(az, ay) * 4068) / 71 + 90;
-    Serial.print(roll);
-    Serial.print(" ");
+    accelRoll = (atan2(az, ax) * 4068) / 71 + 90;
+    accelPitch = (atan2(az, ay) * 4068) / 71 + 90;
 
-    gX = gX + 0.00875 * gyro.g.x * (dT / 1000000.0);
-    gY = gY + 0.00875 * gyro.g.y * (dT / 1000000.0);
-    gZ = gZ + 0.00875 * gyro.g.z * (dT / 1000000.0);
+    //    gX = gX + 0.00875 * gyro.g.x * (dT / 1000000.0);
+    //    gY = gY + 0.00875 * gyro.g.y * (dT / 1000000.0);
+    //    gZ = gZ + 0.00875 * gyro.g.z * (dT / 1000000.0);
 
-    roll = (gY * 0.70) + (roll * 0.3);
-    
-    Serial.print(gY);
-    Serial.print(" ");
+    roll = 0.95 * (roll + 0.00875 * gyro.g.x * (dT / 1000000.0)) + 0.05 * accelRoll;
+    //    pitch = 0.95 * (pitch + gyro.g.y * (dT / 1000000.0)) + 0.05 * accelPitch;
+
     Serial.println(roll);
   }
   //  Serial.print("G ");
