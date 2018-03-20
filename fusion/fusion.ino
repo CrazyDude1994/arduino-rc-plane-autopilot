@@ -5,8 +5,6 @@
 #include <math.h>
 #include "TimerOne.h"
 
-#define ACCELEROMETER_SENSITIVITY 8192.0
-#define GYROSCOPE_SENSITIVITY 65.536
 #define SampleRate 10000
 
 ADXL345 accel;
@@ -16,8 +14,10 @@ unsigned long pT;
 int16_t ax, ay, az;
 double roll, pitch, accelRoll, accelPitch;
 double gX, gY, gZ = 0;
+double offsetRoll, offsetPitch = 0;
 
 bool readGyro;
+int lastWriteMillis;
 
 void setup() {
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -29,14 +29,15 @@ void setup() {
   Serial.println("Testing device connections...");
   Serial.println(accel.testConnection() ? "ADXL345 connection successful" : "ADXL345 connection failed");
 
+  enableBt();
   if (!gyro.init())
   {
     Serial.println("Failed to autodetect gyro type!");
-    while (1);
   }
   gyro.enableDefault();
 
   readGyro = false;
+  lastWriteMillis = millis();
   pT = 0;
   Timer1.initialize(SampleRate);
   Timer1.attachInterrupt( timerIsr );
@@ -48,10 +49,14 @@ void timerIsr()
 }
 
 void loop() {
-  //  Serial.print("Pitch: ");
-  //  Serial.println(pitch);
+  btLoop();
 
-  if (readGyro) {
+  if (readGyro && gyro.init()) {
+    String command = String();
+    while (Serial.available()) {
+      command = command + (char) Serial.read();
+    }
+
     readGyro = false;
     unsigned long cT = micros();
     gyro.read();
@@ -62,20 +67,14 @@ void loop() {
     accelRoll = (atan2(az, ax) * 4068) / 71 + 90;
     accelPitch = (atan2(az, ay) * 4068) / 71 + 90;
 
-    //    gX = gX + 0.00875 * gyro.g.x * (dT / 1000000.0);
-    //    gY = gY + 0.00875 * gyro.g.y * (dT / 1000000.0);
-    //    gZ = gZ + 0.00875 * gyro.g.z * (dT / 1000000.0);
-
     roll = 0.95 * (roll + 0.00875 * gyro.g.x * (dT / 1000000.0)) + 0.05 * accelRoll;
-    //    pitch = 0.95 * (pitch + gyro.g.y * (dT / 1000000.0)) + 0.05 * accelPitch;
+    pitch = 0.95 * (pitch + 0.00875 * gyro.g.y * (dT / 1000000.0)) + 0.05 * accelPitch;
 
-    Serial.println(roll);
+    if (millis() - lastWriteMillis > 66) {
+      Serial.print(roll - offsetRoll);
+      Serial.print(" ");
+      Serial.println(pitch - offsetPitch);
+      lastWriteMillis = millis();
+    }
   }
-  //  Serial.print("G ");
-  //  Serial.print("X: ");
-  //  Serial.print((int)gyro.g.x);
-  //  Serial.print(" Y: ");
-  //  Serial.print((int)gyro.g.y);
-  //  Serial.print(" Z: ");
-  //  Serial.println((int)gyro.g.z);
 }
